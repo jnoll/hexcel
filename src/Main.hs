@@ -12,7 +12,6 @@ import qualified Data.Text as T
 import Data.Time.Clock.POSIX
 import Text.CSV 
 import Text.Regex.PCRE 
---import Text.Regex.Posix
 
 main :: IO ()
 main = do
@@ -20,16 +19,25 @@ main = do
   ct <- getPOSIXTime
 
   let
---      sheet = def & cellValueAt (1,2) ?~ CellDouble 42.0
---                  & cellValueAt (3,2) ?~ CellText "foo"
       csv = getCSV contents
---      sheet = makeSheet' def csv -- [["foo", "bar", "fro", "baz"], ["alpha", "beta", "gamma", "delta"]]
       fmt = formattedCells $ makeCells csv
       (n, ws) = head $ _xlSheets fmt
---      xlsx = def & atSheet "Sheet1" ?~ sheet { _wsDataValidations = validations, _wsCells = formattedCellMap fmt }
       validations = addMenu csv
-      xlsx = fmt & atSheet "Sheet1" ?~ ws { _wsDataValidations = validations }
+      xlsx = fmt & atSheet "Sheet1" ?~ ws { _wsDataValidations = validations, _wsColumnsProperties = colWidths }
   L.writeFile "example.xlsx" $ fromXlsx ct xlsx
+
+colWidth :: Int -> Double -> ColumnsProperties
+colWidth col width = ColumnsProperties { cpMin = col, cpMax = col, cpWidth = Just width, cpStyle = Nothing, cpHidden = False, cpCollapsed = False, cpBestFit = False }
+
+colWidths :: [ColumnsProperties]
+colWidths = [ colWidth 1  4.0 -- section
+            , colWidth 2  9.0 -- question num
+            , colWidth 3 65.0 -- question
+            , colWidth 4  5.0 -- answer
+            , colWidth 5 12.0 -- goto if no
+            , colWidth 6 15.0 -- goto if yes
+            , colWidth 7 45.0 -- comment
+            ]
 
 getCSV :: String ->  [[String]]
 getCSV contents = case parseCSV "/dev/stderr" contents of
@@ -47,38 +55,78 @@ rx :: String -> String
 rx s = s::String
 
 makeRow :: (Int, [String]) -> [ ((Int, Int), FormattedCell) ]
-makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (makeCell rnum partFill) $ zip [1..] (h:r)
-makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (makeCell rnum sectFill) $ zip [1..] (h:r)
-makeRow (rnum, (h:q:r)) | (q =~ rx "^(2|4|6)") = Prelude.map (makeCell rnum evenFill) $ zip [1..] (h:q:r)
-makeRow (rnum, vals) = Prelude.map (makeCell rnum Nothing) $ zip [1..] (vals)
+makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (makeCell rnum "99CCFF" 0) $ zip [1..] (h:r)
+makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (makeCell rnum "B2FF66" 0) $ zip [1..] (h:r)
+makeRow (rnum, (p:n:q:a:r))                 = let color = qColor n in
+                                             [makeCell rnum color 0 (1, p)] ++
+                                             [makeCell rnum color 0 (2, n)] ++
+                                             [makeCell rnum color (qIndent n) (3, q)] ++
+                                             [makeCell rnum "FFFF66" 0 (4, a)] ++
+                                             (Prelude.map (makeCell rnum color 0) $ zip [5..] r)
+makeRow (rnum, r)                         = Prelude.map (makeCell rnum "FFFFFF" 0) $ zip [1..] (r)
 
-makeCell :: Int -> Maybe Fill -> (Int, String) -> ((Int, Int), FormattedCell)
-makeCell rnum fill (cnum, val) = ((rnum, cnum), formatCell val fill False)
+-- question color, used to provide background colors for different sections.
+qColor :: String -> T.Text
+qColor q | (q =~ rx "^(2|4|6|8)[.]1") = "FFCC99"
+qColor q | (q =~ rx "^(2|4|6|8)[.]2") = "FFFFCC"
+qColor q | (q =~ rx "^(2|4|6|8)[.]3") = "FFCCCC"
+qColor q | (q =~ rx "^(2|4|6|8)")     = "FFCC99"
+qColor q | (q =~ rx "^(1|3|5|7)[.]1") = "F5F5F5"
+qColor q | (q =~ rx "^(1|3|5|7)[.]2") = "FF99CC"
+qColor q | (q =~ rx "^(1|3|5|7)[.]3") = "E5CCFF"
+qColor q | (q =~ rx "^(1|3|5|7)")     = "F5F5F5"
+qColor q                              = "FFFFFF"
 
-partFill :: Maybe Fill
-partFill = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just "CCFFF" }
-                                              , _fillPatternFgColor = Just def { _colorARGB = Just "CCFFF" }
-                                              , _fillPatternType = Just PatternTypeSolid } }
-sectFill :: Maybe Fill
-sectFill = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just "FFCCC" }
-                                              , _fillPatternFgColor = Just def { _colorARGB = Just "FFCCC" }
-                                              , _fillPatternType = Just PatternTypeSolid } }
-evenFill :: Maybe Fill
-evenFill = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just "FF9933" }
-                                              , _fillPatternFgColor = Just def { _colorARGB = Just "FF9933" }
-                                              , _fillPatternType = Just PatternTypeSolid } }
+-- question indent. Regexp rather than recursion seems like a hack.
+qIndent :: String -> Int
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 5;
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 4;
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9]") = 3;
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9]") = 2;
+qIndent q | (q =~ rx "^[0-9][.][0-9]") = 1;
+qIndent _  = 0;
 
-formatCell val fill bold = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
-                               , _formattedFormat = def { _formatFill = fill 
-                                                        , _formatFont = Just def { _fontBold = Just bold } } }
+makeCell :: Int -> T.Text -> Int -> (Int, String) -> ((Int, Int), FormattedCell)
+makeCell rnum fill indent (cnum, val) | rnum < 6 = ((rnum, cnum), formatCell val fill False noBorder indent)
+--makeCell rnum fill indent (cnum, val) | cnum == 4 = ((rnum, cnum), formatCell val fill False lineBorder indent)
+makeCell rnum fill indent (cnum, val) | cnum == 7 = ((rnum, cnum), formatCell val fill False lineBorder indent)
+makeCell rnum fill indent (cnum, val)  = ((rnum, cnum), formatCell val fill False noBorder indent)
 
-cellFormats :: [ FormattedCell ]
-cellFormats = [ def { _formattedCell = def { _cellValue = Just $ CellText "foo" }
-                    , _formattedFormat = def { _formatFill = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just "CCFFFF" }, _fillPatternFgColor = Just def { _colorARGB = Just "CCFFFF" }, _fillPatternType = Just PatternTypeSolid } } }
-                   , _formattedColSpan = 1
-                   , _formattedRowSpan = 1
-                   }
-              ]
+
+fillColor :: T.Text -> Maybe Fill
+fillColor c = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just c }
+                                                 , _fillPatternFgColor = Just def { _colorARGB = Just c }
+                                                 , _fillPatternType = Just PatternTypeSolid } }
+
+formatCell val fill bold border indent = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
+                                             , _formattedFormat = def { _formatFill = fillColor fill 
+                                                                      , _formatFont = Just def { _fontBold = Just bold, _fontName = Just "Calibri" }
+                                                                      , _formatBorder = border
+                                                                      , _formatAlignment = Just def { _alignmentIndent = Just indent
+                                                                                                    , _alignmentHorizontal = Just CellHorizontalAlignmentLeft
+                                                                                                    }
+                                                                      }
+                                             }
+
+
+noBorder :: Maybe Border
+noBorder = Just def { _borderLeft = noBorderStyle
+                    , _borderRight = noBorderStyle
+                    , _borderTop = noBorderStyle
+                    , _borderBottom = noBorderStyle
+                    }
+lineBorder :: Maybe Border
+lineBorder = Just def { _borderLeft = lineBorderStyle
+                      , _borderRight = lineBorderStyle
+                      , _borderTop = lineBorderStyle
+                      , _borderBottom = lineBorderStyle
+                      }
+
+noBorderStyle :: Maybe BorderStyle
+noBorderStyle = Just $ def { _borderStyleLine = Just LineStyleNone, _borderStyleColor = Just def { _colorARGB = Just "000000" } }
+
+lineBorderStyle :: Maybe BorderStyle
+lineBorderStyle = Just $ def { _borderStyleLine = Just LineStyleThin, _borderStyleColor = Just def { _colorARGB = Just "000000" } }
 
 
 addMenu :: [[String]] -> Map SqRef  DataValidation
@@ -90,16 +138,15 @@ addMenu' :: (Int, [String]) -> (SqRef, DataValidation)
 addMenu' (n, h:_) | (h =~ qregex) = (SqRef [singleCellRef (n, 4)], defMenu) -- these get dropdown
 addMenu' (n, _) = (SqRef [singleCellRef (n, 4)], def) -- these get defaul
 
-
 defMenu :: DataValidation
 defMenu = def { _dvAllowBlank       = False
-              , _dvError            = Just "incorrect data"
+              , _dvError            = Just "Incorrect data"
               , _dvErrorStyle       = ErrorStyleInformation
-              , _dvErrorTitle       = Just "error title"
-              , _dvPrompt           = Just "enter data from menu"
-              , _dvPromptTitle      = Just "prompt title"
+              , _dvErrorTitle       = Just "Click the down arrow to right of this cell to see your options"
+              , _dvPrompt           = Just "Please use dropdown options only"
+              , _dvPromptTitle      = Just "Score"
               , _dvShowDropDown     = False -- this has the opposite effect to what I expect
               , _dvShowErrorMessage = True
               , _dvShowInputMessage = True
-              , _dvValidationType   = ValidationTypeList ["aaaa","bbbb","cccc"]
+              , _dvValidationType   = ValidationTypeList ["N/A","Yes","No"]
               }
