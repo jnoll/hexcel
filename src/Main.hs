@@ -55,15 +55,19 @@ rx :: String -> String
 rx s = s::String
 
 makeRow :: (Int, [String]) -> [ ((Int, Int), FormattedCell) ]
-makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (makeCell rnum "99CCFF" 0) $ zip [1..] (h:r)
-makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (makeCell rnum "B2FF66" 0) $ zip [1..] (h:r)
-makeRow (rnum, (p:n:q:a:r))                 = let color = qColor n in
-                                             [makeCell rnum color 0 (1, p)] ++
-                                             [makeCell rnum color 0 (2, n)] ++
-                                             [makeCell rnum color (qIndent n) (3, q)] ++
-                                             [makeCell rnum "FFFF66" 0 (4, a)] ++
-                                             (Prelude.map (makeCell rnum color 0) $ zip [5..] r)
-makeRow (rnum, r)                         = Prelude.map (makeCell rnum "FFFFFF" 0) $ zip [1..] (r)
+makeRow (rnum, (h:r)) | rnum < 5 = Prelude.map (makeCell rnum "FFFFFF" 0 noBorder) $ zip [1..] (h:r)
+makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (makeCell rnum "99CCFF" 0 noBorder) $ zip [1..] (h:r)
+makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (makeCell rnum "B2FF66" 0 noBorder) $ zip [1..] (h:r)
+makeRow (rnum, (p:n:q:a:n1:n2:c:r))                 = let color = qColor n in
+                                             [ makeCell rnum color 0 noBorder (1, p)
+                                             , makeCell rnum color 0 noBorder (2, n)
+                                             , makeCell rnum color (qIndent n) noBorder (3, q)
+                                             , makeCell rnum "FFFF66" 0 lineBorder (4, a)
+                                             , makeCell rnum color 0 noBorder (5, n1)
+                                             , makeCell rnum color 0 noBorder (6, n2)
+                                             , makeCell rnum color 0 lineBorder (7, c)
+                                             ] ++ (Prelude.map (makeCell rnum color 0 noBorder) $ zip [8..] r)
+makeRow (rnum, r)                         = Prelude.map (makeCell rnum "FFFFFF" 0 noBorder) $ zip [1..] (r)
 
 -- question color, used to provide background colors for different sections.
 qColor :: String -> T.Text
@@ -86,11 +90,24 @@ qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9]") = 2;
 qIndent q | (q =~ rx "^[0-9][.][0-9]") = 1;
 qIndent _  = 0;
 
-makeCell :: Int -> T.Text -> Int -> (Int, String) -> ((Int, Int), FormattedCell)
-makeCell rnum fill indent (cnum, val) | rnum < 6 = ((rnum, cnum), formatCell val fill False noBorder indent)
+noBorder :: Border
+noBorder =  def { _borderLeft = noBorderStyle
+                    , _borderRight = noBorderStyle
+                    , _borderTop = noBorderStyle
+                    , _borderBottom = noBorderStyle
+                    }
+lineBorder :: Border
+lineBorder =  def { _borderLeft = lineBorderStyle
+                      , _borderRight = lineBorderStyle
+                      , _borderTop = lineBorderStyle
+                      , _borderBottom = lineBorderStyle
+                      }
+
+makeCell :: Int -> T.Text -> Int -> Border -> (Int, String) -> ((Int, Int), FormattedCell)
+--makeCell rnum fill indent border (cnum, val) | rnum < 6 = ((rnum, cnum), formatCell val fill False (Just border) indent)
 --makeCell rnum fill indent (cnum, val) | cnum == 4 = ((rnum, cnum), formatCell val fill False lineBorder indent)
-makeCell rnum fill indent (cnum, val) | cnum == 7 = ((rnum, cnum), formatCell val fill False lineBorder indent)
-makeCell rnum fill indent (cnum, val)  = ((rnum, cnum), formatCell val fill False noBorder indent)
+--makeCell rnum fill indent border (cnum, val) | cnum == 7 = ((rnum, cnum), formatCell val fill False (Just border) indent)
+makeCell rnum fill indent border (cnum, val)  = ((rnum, cnum), formatCell val fill False (Just border) indent)
 
 
 fillColor :: T.Text -> Maybe Fill
@@ -109,18 +126,6 @@ formatCell val fill bold border indent = def { _formattedCell = def { _cellValue
                                              }
 
 
-noBorder :: Maybe Border
-noBorder = Just def { _borderLeft = noBorderStyle
-                    , _borderRight = noBorderStyle
-                    , _borderTop = noBorderStyle
-                    , _borderBottom = noBorderStyle
-                    }
-lineBorder :: Maybe Border
-lineBorder = Just def { _borderLeft = lineBorderStyle
-                      , _borderRight = lineBorderStyle
-                      , _borderTop = lineBorderStyle
-                      , _borderBottom = lineBorderStyle
-                      }
 
 noBorderStyle :: Maybe BorderStyle
 noBorderStyle = Just $ def { _borderStyleLine = Just LineStyleNone, _borderStyleColor = Just def { _colorARGB = Just "000000" } }
