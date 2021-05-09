@@ -1,8 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternGuards #-} -- for string prefix pattern
 module Main where
 import Codec.Xlsx
-import Codec.Xlsx.Formatted
+import Codec.Xlsx.Formatted (formatWorkbook, FormattedCell(..))
+import Codec.Xlsx.SimpleFormatted
 import Control.Lens
 import qualified Data.ByteString.Lazy as L
 import Data.List (stripPrefix)
@@ -26,6 +28,12 @@ main = do
       xlsx = fmt & atSheet "Sheet1" ?~ ws { _wsDataValidations = validations, _wsColumnsProperties = colWidths }
   L.writeFile "example.xlsx" $ fromXlsx ct xlsx
 
+
+getCSV :: String ->  [[String]]
+getCSV contents = case parseCSV "/dev/stderr" contents of
+    Left s -> [["error", show $ s]]
+    Right rows -> rows
+
 colWidth :: Int -> Double -> ColumnsProperties
 colWidth col width = ColumnsProperties { cpMin = col, cpMax = col, cpWidth = Just width, cpStyle = Nothing, cpHidden = False, cpCollapsed = False, cpBestFit = False }
 
@@ -39,10 +47,6 @@ colWidths = [ colWidth 1  4.0 -- section
             , colWidth 7 45.0 -- comment
             ]
 
-getCSV :: String ->  [[String]]
-getCSV contents = case parseCSV "/dev/stderr" contents of
-    Left s -> [["error", show $ s]]
-    Right rows -> rows
 
 formattedCells :: [((Int, Int), FormattedCell)] -> Xlsx
 formattedCells cells = formatWorkbook [("Sheet1", M.fromList cells)] minimalStyleSheet
@@ -51,23 +55,26 @@ formattedCells cells = formatWorkbook [("Sheet1", M.fromList cells)] minimalStyl
 makeCells :: [[String]] -> [((Int, Int), FormattedCell)]
 makeCells rows = concat $ Prelude.map makeRow $ zip [1..] rows
 
+-- Make a string into a regular expression.  Only to make type clear.
 rx :: String -> String
 rx s = s::String
 
+-- The rubric has a plain header in the top four rows, a line of column headings in row 5,
+-- then a few sections comprising a section header and one or more questions.
 makeRow :: (Int, [String]) -> [ ((Int, Int), FormattedCell) ]
-makeRow (rnum, (h:r)) | rnum < 5 = Prelude.map (makeCell rnum "FFFFFF" 0 noBorder) $ zip [1..] (h:r)
-makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (makeCell rnum "99CCFF" 0 noBorder) $ zip [1..] (h:r)
-makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (makeCell rnum "B2FF66" 0 noBorder) $ zip [1..] (h:r)
-makeRow (rnum, (p:n:q:a:n1:n2:c:r))                 = let color = qColor n in
-                                             [ makeCell rnum color 0 noBorder (1, p)
-                                             , makeCell rnum color 0 noBorder (2, n)
-                                             , makeCell rnum color (qIndent n) noBorder (3, q)
-                                             , makeCell rnum "FFFF66" 0 lineBorder (4, a)
-                                             , makeCell rnum color 0 noBorder (5, n1)
-                                             , makeCell rnum color 0 noBorder (6, n2)
-                                             , makeCell rnum color 0 lineBorder (7, c)
-                                             ] ++ (Prelude.map (makeCell rnum color 0 noBorder) $ zip [8..] r)
-makeRow (rnum, r)                         = Prelude.map (makeCell rnum "FFFFFF" 0 noBorder) $ zip [1..] (r)
+makeRow (rnum, (h:r)) | rnum < 5 = Prelude.map (\(c, v) -> makeCell rnum c v def) $ zip [1..] (h:r)
+makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "99CCFF"}) $ zip [1..] (h:r)
+makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "B2FF66"}) $ zip [1..] (h:r)
+makeRow (rnum, (p:n:q:a:n1:n2:c:r)) = let color = qColor n in -- this is the question row
+                                       [ makeCell rnum 1 p def { fill = color }
+                                       , makeCell rnum 2 n def { fill = color }
+                                       , makeCell rnum 3 q def { fill = color, indent = (qIndent n) }
+                                       , makeCell rnum 4 a def { fill = "FFFF66", border = lineBorder }
+                                       , makeCell rnum 5 n1 def { fill = color }
+                                       , makeCell rnum 6 n2 def { fill = color }
+                                       , makeCell rnum 7 c def { fill = color, border = lineBorder }
+                                       ] ++ (Prelude.map (\(c, v) -> makeCell rnum c v def { fill = color }) $ zip [8..] r)
+makeRow (rnum, r) = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "FFFFFF" }) $ zip [1..] (r)
 
 -- question color, used to provide background colors for different sections.
 qColor :: String -> T.Text
@@ -81,7 +88,7 @@ qColor q | (q =~ rx "^(1|3|5|7)[.]3") = "E5CCFF"
 qColor q | (q =~ rx "^(1|3|5|7)")     = "F5F5F5"
 qColor q                              = "FFFFFF"
 
--- question indent. Regexp rather than recursion seems like a hack.
+-- question indent. Regexp rather than recursion is a hack, but works OK for CSV input.
 qIndent :: String -> Int
 qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 5;
 qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 4;
@@ -90,54 +97,15 @@ qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9]") = 2;
 qIndent q | (q =~ rx "^[0-9][.][0-9]") = 1;
 qIndent _  = 0;
 
-noBorder :: Border
-noBorder =  def { _borderLeft = noBorderStyle
-                    , _borderRight = noBorderStyle
-                    , _borderTop = noBorderStyle
-                    , _borderBottom = noBorderStyle
-                    }
-lineBorder :: Border
-lineBorder =  def { _borderLeft = lineBorderStyle
-                      , _borderRight = lineBorderStyle
-                      , _borderTop = lineBorderStyle
-                      , _borderBottom = lineBorderStyle
-                      }
 
-makeCell :: Int -> T.Text -> Int -> Border -> (Int, String) -> ((Int, Int), FormattedCell)
---makeCell rnum fill indent border (cnum, val) | rnum < 6 = ((rnum, cnum), formatCell val fill False (Just border) indent)
---makeCell rnum fill indent (cnum, val) | cnum == 4 = ((rnum, cnum), formatCell val fill False lineBorder indent)
---makeCell rnum fill indent border (cnum, val) | cnum == 7 = ((rnum, cnum), formatCell val fill False (Just border) indent)
-makeCell rnum fill indent border (cnum, val)  = ((rnum, cnum), formatCell val fill False (Just border) indent)
-
-
-fillColor :: T.Text -> Maybe Fill
-fillColor c = Just def { _fillPattern = Just def { _fillPatternBgColor = Just def { _colorARGB = Just c }
-                                                 , _fillPatternFgColor = Just def { _colorARGB = Just c }
-                                                 , _fillPatternType = Just PatternTypeSolid } }
-
-formatCell val fill bold border indent = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
-                                             , _formattedFormat = def { _formatFill = fillColor fill 
-                                                                      , _formatFont = Just def { _fontBold = Just bold, _fontName = Just "Calibri" }
-                                                                      , _formatBorder = border
-                                                                      , _formatAlignment = Just def { _alignmentIndent = Just indent
-                                                                                                    , _alignmentHorizontal = Just CellHorizontalAlignmentLeft
-                                                                                                    }
-                                                                      }
-                                             }
-
-
-
-noBorderStyle :: Maybe BorderStyle
-noBorderStyle = Just $ def { _borderStyleLine = Just LineStyleNone, _borderStyleColor = Just def { _colorARGB = Just "000000" } }
-
-lineBorderStyle :: Maybe BorderStyle
-lineBorderStyle = Just $ def { _borderStyleLine = Just LineStyleThin, _borderStyleColor = Just def { _colorARGB = Just "000000" } }
-
-
+-- Column four of question lines gets a dropdown menu.
+-- Dropdowns are part of data validations.
 addMenu :: [[String]] -> Map SqRef  DataValidation
 addMenu rows = M.fromList $ map addMenu' $ zip [1..] rows
 
+-- regex to match question lines, which get menus.
 qregex = "^[ \t]*[A-Z][ \t]*$" :: String -- Single letter indicates a question.
+
 -- Anything that doesn't match one of the prefixes gets a menu.
 addMenu' :: (Int, [String]) -> (SqRef, DataValidation)
 addMenu' (n, h:_) | (h =~ qregex) = (SqRef [singleCellRef (n, 4)], defMenu) -- these get dropdown
@@ -155,3 +123,5 @@ defMenu = def { _dvAllowBlank       = False
               , _dvShowInputMessage = True
               , _dvValidationType   = ValidationTypeList ["N/A","Yes","No"]
               }
+
+

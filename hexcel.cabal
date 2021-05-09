@@ -1,7 +1,7 @@
 name:                hexcel
 version:             0.1.0.0
--- synopsis:
--- description:
+synopsis:            Create formatted excel spreadsheet from (CSV) input.
+description:         Please see README.md
 homepage:            https://github.com/githubuser/hexcel#readme
 license:             BSD3
 license-file:        LICENSE
@@ -13,16 +13,38 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
+library
+  build-tools:       ghc >= 7.0
+  default-language:  Haskell2010
+  hs-source-dirs:    src
+  exposed-modules:   Codec.Xlsx.SimpleFormatted
+
+  build-depends:     base >= 4.7 && < 5
+                   , bytestring
+                   , containers
+                   , csv
+                   , data-default-class
+                   , lens
+                   , regex-pcre
+                   , text
+                   , time
+                   , xlsx
+
+
 executable hexcel
-  hs-source-dirs:      src
-  main-is:             Main.hs
-  default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 5
-                     , bytestring
-                     , containers
-                     , csv
-                     , lens
-                     , regex-pcre
-                     , text
-                     , time
-                     , xlsx
+  build-tools:       ghc >= 7.0
+  default-language:  Haskell2010
+  hs-source-dirs:    src
+  main-is:           Main.hs
+  build-depends:     base >= 4.7 && < 5
+                   , bytestring
+                   , containers
+                   , csv
+                   , data-default-class
+                   , lens
+                   , regex-pcre
+                   , text
+                   , time
+                   , xlsx
+
+  other-modules:     Codec.Xlsx.SimpleFormatted
