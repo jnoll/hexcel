@@ -12,22 +12,45 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import qualified Data.Text as T
 import Data.Time.Clock.POSIX
+import System.IO (openFile, hClose, hGetContents, IOMode(..))
 import Text.CSV 
 import Text.Regex.PCRE 
 
+toInt :: String -> Int
+toInt s = read s
+
 main :: IO ()
 main = do
-  contents <- getContents
+  tmplh <- openFile "rubric.csv" ReadMode
+  contents <- hGetContents tmplh
+
   ct <- getPOSIXTime
+  datah <- openFile "values.csv" ReadMode
+  valc <- hGetContents datah
 
   let
       csv = getCSV contents
-      fmt = formattedCells $ makeCells csv
+      vals = getCSV valc
+      cells = M.fromList $ makeCells csv
+      cells' = foldl updateCell cells vals
+      fmt = formattedCells cells'
       (n, ws) = head $ _xlSheets fmt
       validations = addMenu csv
       xlsx = fmt & atSheet "Sheet1" ?~ ws { _wsDataValidations = validations, _wsColumnsProperties = colWidths }
   L.writeFile "example.xlsx" $ fromXlsx ct xlsx
+  hClose tmplh
+  hClose datah
 
+updateCell :: Map (Int, Int) FormattedCell -> [String] -> Map (Int, Int) FormattedCell
+updateCell m [] = m
+updateCell m ("row":_) = m
+updateCell m ("Row":_) = m
+updateCell m ("ROW":_) = m
+updateCell m (r:c:v:_) = M.update (replaceVal v) (toInt r, toInt c) m
+updateCell m _ = m
+
+replaceVal :: String -> FormattedCell -> Maybe FormattedCell
+replaceVal v c = Just c { _formattedCell = def { _cellValue = Just $ CellText $ T.pack v } }
 
 getCSV :: String ->  [[String]]
 getCSV contents = case parseCSV "/dev/stderr" contents of
@@ -48,8 +71,8 @@ colWidths = [ colWidth 1  4.0 -- section
             ]
 
 
-formattedCells :: [((Int, Int), FormattedCell)] -> Xlsx
-formattedCells cells = formatWorkbook [("Sheet1", M.fromList cells)] minimalStyleSheet
+formattedCells :: M.Map (Int, Int) FormattedCell -> Xlsx
+formattedCells cells = formatWorkbook [("Sheet1", cells)] minimalStyleSheet
 
 
 makeCells :: [[String]] -> [((Int, Int), FormattedCell)]
