@@ -68,9 +68,9 @@ main = do
   -- "-v -" means read values from stdin.  Useful for values provided by a pipeline.
   valh <- if (opt_values args) == "-" then return stdin else openFile (opt_values args) ReadMode
   valc <- hGetContents valh
-  inh <- openFile (opt_input args) ReadMode
 
   excel <- L.readFile (opt_input args)
+
   let xlsx = toXlsx excel
       sheet =  fromJust (xlsx ^? ixSheet (opt_sheet args) )
       vals = getCSV valc

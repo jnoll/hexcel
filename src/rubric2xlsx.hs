@@ -137,8 +137,7 @@ defaultOptions = Options {
 main :: IO ()
 main = do
   args <- cmdArgs defaultOptions
-  tmplh <- openFile (opt_rubric args) ReadMode
-  contents <- hGetContents tmplh
+  contents <- readFile (opt_rubric args) 
 
   ct <- getPOSIXTime
 
@@ -150,4 +149,4 @@ main = do
       validations = addMenu rubric
       xlsx = fmt & atSheet "Sheet1" ?~ ws { _wsDataValidations = validations, _wsColumnsProperties = colWidths }
   L.writeFile (opt_output args) $ fromXlsx ct xlsx
-  hClose tmplh
+

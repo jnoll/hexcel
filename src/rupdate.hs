@@ -82,6 +82,7 @@ main = do
   -- -v - means read from stdin.
   valh <- if (opt_values args) == "-" then return stdin else openFile (opt_values args) ReadMode
   valc <- hGetContents valh
+
   rubricc <- readFile (opt_rubric args)
 
   excel <- L.readFile (opt_input args)
