@@ -13,8 +13,8 @@ test-xlsx: build
 
 test-rupdate: build
 	cp rubric.xlsx input.xlsx
-	stack exec rupdate -- --sheet Sheet1 --rubric rubric.csv --input input.xlsx --output output.xlsx --values marks.csv
+	stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output output.xlsx --values marks.csv
 
 test-rupdate2: build
 	cp rubric.xlsx input.xlsx
-	stack exec rupdate -- --sheet Sheet1 --rubric rubric.csv --input input.xlsx --output input.xlsx --values marks.csv
+	stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output input.xlsx --values marks.csv
