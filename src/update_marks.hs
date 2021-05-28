@@ -75,15 +75,16 @@ defaultOptions = Options {
 
 -- XXXjn this relies on there being a value at every valid cell in the input.  Seems to work.
 projectCol :: Int -> CellMap -> [(Int, Int, String)]
-projectCol target m = map toVal $ catMaybes $ map (\((r, c), cell) -> if c == target then Just (r, c, (_cellValue $ cell))  else Nothing) $ M.toAscList m
+projectCol target m = catMaybes $ map toVal $ map (\((r, c), cell) -> if c == target then Just (r, c, (_cellValue $ cell))  else Nothing) $ M.toAscList m
 
-toVal :: (Int, Int, Maybe CellValue) -> (Int, Int, String)
-toVal (r, c, Just (CellText v)) = (r, c, T.unpack v)
-toVal (r, c, Just (CellDouble v)) = (r, c, show v)
-toVal (r, c, Just (CellBool v)) = (r, c, show v)
-toVal (r, c, Just (CellRich v)) = (r, c, "(rich text)")
-toVal (r, c, Just (CellError v)) = (r, c, show v)
-toVal (r, c, Nothing) = (r, c, "-9")
+toVal :: Maybe (Int, Int, Maybe CellValue) -> Maybe (Int, Int, String)
+toVal (Just (r, c, Just (CellText v))) = Just (r, c, T.unpack v)
+toVal (Just (r, c, Just (CellDouble v))) = Just (r, c, show v)
+toVal (Just (r, c, Just (CellBool v))) = Just (r, c, show v)
+toVal (Just (r, c, Just (CellRich v))) = Just (r, c, show v)
+toVal (Just (r, c, Just (CellError v))) = Just (r, c, show v)
+toVal (Just (r, c, Nothing)) = Nothing
+toVal Nothing = Nothing
 
 main :: IO ()
 main = do

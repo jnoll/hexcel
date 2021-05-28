@@ -79,6 +79,7 @@ defaultOptions = Options {
   &= program "main"
 
 
+-- XXXjn this relies on there being a value at every valid cell in the rubric.  Seems to work.
 projectCol :: Int -> CellMap -> [String]
 projectCol target m = map (\(CellText v) -> T.unpack v) $ catMaybes $ map (\((r, c), cell) -> if c == target then (_cellValue $ cell)  else Nothing) $ M.toAscList m
 
@@ -97,7 +98,8 @@ main = do
       vals = getCSV valc
       cells = _wsCells sheet
       -- This is more efficient, but at the cost of understandabiltity
-      -- It ends up being 10N, which is silly for rubrics with 30-40 rows.
+      -- It ends up being 10N, which is silly for rubrics with 30-40 rows, but maybe OK
+      -- for large rubrics like the final report that has 81 rows, or nearly 700 cells.
       qmap = M.fromList $ zip (zip (projectCol 1 cells) (projectCol 2 cells)) [1..]
       cells' = foldl (updateCell qmap) cells vals
       xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells' }
