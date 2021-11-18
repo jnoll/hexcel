@@ -1,0 +1,39 @@
+# This file is in YAML format.  You must ensure that the punctuation
+# and whitespace is preserved.  Do NOT use Windows Notepad to edit this
+# file; use a real programming editor like Notepad++ instead.
+
+# Write your group name exactly as it appears on Canvas.
+group: A_group 999
+
+# Write the names of your group members as a comma-separated list
+# within the square brackets.
+members: [Luke Bisee, Harly Werkin, Notta Klu, Ben Gonna, Abbey Sent]
+
+# Write your general topic.  
+topic: Happiness 
+
+# Write your research question, following one of the three allowed templates.
+# Be sure your question is all on one line.
+RQ: Is there a correlation between happiness and generosity?
+
+# Write the null hypothesis for your research question, again ensuring it is all on one line.
+null-hypothesis: There is no correlation between happiness and generosity.
+
+# Write the alternative hypothesis for your research question, again ensuring it is all on one line.
+alt-hypothesis: There is a correlation between happiness and generosity.
+
+# Write the dataset URL.  Be sure it has the allowed hostname.
+dataset-url: "https://data.world/juiche/happiness"
+
+# Paste the output of loading your dataset into R, and executing the
+# colnames() function, into the space below the `columns: |` line.
+# Put two spaces *before* every line you pasted.
+columns: |
+  > d<-read.csv("2015.csv")
+  > colnames(d)
+   [1] "Country"                       "Region"                       
+   [3] "Happiness.Rank"                "Happiness.Score"              
+   [5] "Standard.Error"                "Economy..GDP.per.Capita."     
+   [7] "Family"                        "Health..Life.Expectancy."     
+   [9] "Freedom"                       "Trust..Government.Corruption."
+  [11] "Generosity"                    "Dystopia.Residual"            

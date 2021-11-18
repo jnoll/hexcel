@@ -22,22 +22,46 @@ data SimpleFormat = SimpleFormat {
   , fill :: T.Text              -- RGB color spec
   , indent :: Int
   , bold :: Bool
+  , color :: T.Text
+  , font :: T.Text
   }
                     
 instance Default SimpleFormat where
-  def = SimpleFormat { border = Nothing, fill = "FFFFFF", indent = 0, bold = False }
+  def = SimpleFormat { border = Nothing
+                     , fill = "FFFFFF"
+                     , indent = 0
+                     , bold = False
+                     , color = "000000"
+                     , font = "Calibri"
+                     }
   
 class MakeCell val where
 -- makeCell row col val fmt
   makeCell :: Int -> Int -> val -> SimpleFormat -> ((Int, Int), FormattedCell)
 --  formatCell val fill bold border indent
-  formatCell :: val -> T.Text -> Bool -> Maybe Border -> Int  -> FormattedCell
+  formatCell :: val -> SimpleFormat -> FormattedCell
+  formatCell' :: val -> T.Text -> Bool -> Maybe Border -> Int  -> FormattedCell
 
 instance MakeCell String where 
-  makeCell rnum cnum val fmt = ((rnum, cnum), formatCell val (fill fmt) (bold fmt) (border fmt) (indent fmt))
-  formatCell val fill bold border indent = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
+  makeCell rnum cnum val fmt = ((rnum, cnum), formatCell val fmt)
+  formatCell val fmt = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
+                                               , _formattedFormat = def { _formatFill = fillColor (fill fmt)
+                                                                        , _formatFont = Just def { _fontBold = Just (bold fmt)
+                                                                                                 , _fontName = Just (font fmt)
+                                                                                                 , _fontColor = Just $ def { _colorARGB = Just (color fmt) }
+                                                                                                 }
+                                                                        , _formatBorder = (border fmt)
+                                                                        , _formatAlignment = Just def { _alignmentIndent = Just (indent fmt)
+                                                                                                      , _alignmentHorizontal = Just CellHorizontalAlignmentLeft
+                                                                                                      }
+                                                                        }
+                                               }
+  formatCell' val fill bold border indent = def { _formattedCell = def { _cellValue = Just $ CellText $ T.pack val }
                                                , _formattedFormat = def { _formatFill = fillColor fill 
-                                                                        , _formatFont = Just def { _fontBold = Just bold, _fontName = Just "Calibri" }
+                                                                        , _formatFont = Just def { _fontBold = Just bold
+                                                                                                 , _fontName = Just "Calibri"
+                                                                                                 , _fontColor = Just $ def { _colorARGB = Just "000000" }
+                                                                                                 }
                                                                         , _formatBorder = border
                                                                         , _formatAlignment = Just def { _alignmentIndent = Just indent
                                                                                                       , _alignmentHorizontal = Just CellHorizontalAlignmentLeft

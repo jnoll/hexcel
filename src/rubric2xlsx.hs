@@ -32,7 +32,7 @@ colWidth col width = ColumnsProperties { cpMin = col, cpMax = col, cpWidth = Jus
 
 colWidths :: [ColumnsProperties]
 colWidths = [ colWidth 1  4.0 -- section
-            , colWidth 2  9.0 -- question num
+            , colWidth 2 15.0 -- question num
             , colWidth 3 65.0 -- question
             , colWidth 4  5.0 -- answer
             , colWidth 5 12.0 -- goto if no
@@ -58,15 +58,26 @@ makeRow :: (Int, [String]) -> [ ((Int, Int), FormattedCell) ]
 makeRow (rnum, (h:r)) | rnum < 5 = Prelude.map (\(c, v) -> makeCell rnum c v def) $ zip [1..] (h:r)
 makeRow (rnum, (h:r)) | (h =~ rx "^Part") = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "99CCFF"}) $ zip [1..] (h:r)
 makeRow (rnum, (h:r)) | (h =~ rx "^Sect") = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "B2FF66"}) $ zip [1..] (h:r)
-makeRow (rnum, (p:n:q:a:n1:n2:c:r)) = let color = qColor n in -- this is the question row
-                                       [ makeCell rnum 1 p def { fill = color }
-                                       , makeCell rnum 2 n def { fill = color }
-                                       , makeCell rnum 3 q def { fill = color, indent = (qIndent n) }
+makeRow (rnum, ("x":n:r)) = let bgColor = "FFDDFF"
+                                color = "0000FF"
+                            in -- this is the row containing submission data
+                                          [ makeCell rnum 1 ("x" :: String) def { fill = bgColor, color = color, font = "Courier" }
+                                          , makeCell rnum 2 n def { fill = bgColor, color = color, font = "Courier" }
+                                          , makeCell rnum 3 ("" :: String) def { fill = bgColor, color = color, font = "Courier" }
+                                          , makeCell rnum 4 ("" :: String) def { fill = bgColor }
+                                          , makeCell rnum 5 ("" :: String) def { fill = bgColor }
+                                          , makeCell rnum 6 ("" :: String) def { fill = bgColor }
+                                          , makeCell rnum 7 ("" :: String) def { fill = bgColor, border = lineBorder }
+                                          ] ++ (Prelude.map (\(c, v) -> makeCell rnum c v def { fill = bgColor }) $ zip [8..] r)
+makeRow (rnum, (p:n:q:a:n1:n2:c:r)) = let bgColor = qColor n in -- this is the question row
+                                       [ makeCell rnum 1 p def { fill = bgColor }
+                                       , makeCell rnum 2 n def { fill = bgColor }
+                                       , makeCell rnum 3 q def { fill = bgColor, indent = (qIndent n) }
                                        , makeCell rnum 4 a def { fill = "FFFF66", border = lineBorder }
-                                       , makeCell rnum 5 n1 def { fill = color }
-                                       , makeCell rnum 6 n2 def { fill = color }
-                                       , makeCell rnum 7 c def { fill = color, border = lineBorder }
-                                       ] ++ (Prelude.map (\(c, v) -> makeCell rnum c v def { fill = color }) $ zip [8..] r)
+                                       , makeCell rnum 5 n1 def { fill = bgColor }
+                                       , makeCell rnum 6 n2 def { fill = bgColor }
+                                       , makeCell rnum 7 c def { fill = bgColor, border = lineBorder }
+                                       ] ++ (Prelude.map (\(c, v) -> makeCell rnum c v def { fill = bgColor }) $ zip [8..] r)
 makeRow (rnum, r) = Prelude.map (\(c, v) -> makeCell rnum c v def { fill = "FFFFFF" }) $ zip [1..] (r)
 
 -- question color, used to provide background colors for different sections.
@@ -83,6 +94,8 @@ qColor q                              = "FFFFFF"
 
 -- question indent. Regexp rather than recursion is a hack, but works OK for CSV input.
 qIndent :: String -> Int
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 7;
+qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 6;
 qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 5;
 qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9][.][0-9]") = 4;
 qIndent q | (q =~ rx "^[0-9][.][0-9][.][0-9][.][0-9]") = 3;
