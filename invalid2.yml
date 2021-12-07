@@ -1,0 +1,123 @@
+# and whitespace is preserved.  Do NOT use Windows Notepad to edit this
+# file; use a real programming editor like Notepad++ instead.
+
+# Write your group name exactly as it appears on Canvas.
+group: A_group-1
+
+# Write the names of your group members as a comma-separated list
+# within the square brackets.
+members: [
+    Olugbenga Akinduko,
+    Oyinkansola Oluwafunmike Aremu,
+    Oluwadolapo Oni,
+    Mary Funmi Oseni,
+    Bhavesh Kanubhai Parekh,
+  ]
+
+# Write your general topic.
+topic: Internet Usage
+
+# Write your research question, following one of the three allowed templates.
+# Be sure your question is all on one line.
+RQ: Is there a correlation between the average internet usage and average number of graduates per household in the united states in 2010?
+
+# Write the null hypothesis for your research question, again ensuring it is all on one line.
+null-hypothesis: There is no correlation between the average internet usage and average number of graduates per household in the united states in 2010.
+
+# Write the alternative hypothesis for your research question, again ensuring it is all on one line.
+alt-hypothesis: There is correlation between the average internet usage and average number of graduates per household in the united states in 2010.
+
+# Write the dataset URL.  Be sure it has the allowed hostname.
+dataset-url: https://data.world/chapmanclay/2010-state-internet-speeds/workspace/file?filename=2010+DATA+INTERNET.xlsx
+
+# Paste the output of loading your dataset into R, and executing the
+# colnames() function, into the space below the `columns: |` line.
+# Put two spaces *before* every line you pasted.
+columns: |
+
+
+  d <- read.csv("/home/oluwadolapo/code-projects/a_group-01/internet_usage.csv")
+
+
+  colnames(d)
+
+
+  [1] "State"                    "Year"                    
+
+
+  [3] "Internet.Usage.Household" "Bachelors.Degree.or.Up"  
+
+
+  [5] "GDPpcGrowth"              "unemployment"            
+
+
+  [7] "Population"               "FarmEmploy"              
+
+
+  [9] "Forest.FishEmploy"        "Mining.Employ"           
+
+
+  [11] "UtilitiesEmploy"          "ConstructionEmploy"      
+
+
+  [13] "ManufactureEmploy"        "WholesaleTradeEmploy"    
+
+
+  [15] "RetailTradeEmploy"        "TransportEmploy"         
+
+
+  [17] "InfoOther1"               "InfoOther2"              
+
+
+  [19] "InfoOther3"               "ITEmploy1"               
+
+
+  [21] "ITEmploy2"                "InfoOther4"              
+
+
+  [23] "FinanceInsuranceEmploy"   "RealtyEmploy"            
+
+
+  [25] "ProfTechEmploy"           "ManagementEmploy"        
+
+
+  [27] "AdminEmploy"              "EducationEmploy"         
+
+
+  [29] "HealthcareEmploy"         "ArtsEmploy"              
+
+
+  [31] "AccomFoodEmploy"          "OtherEmploy"             
+
+
+  [33] "GovernmentEmploy"         "AvgWage"                 
+
+
+  [35] "PersonalIncomePC"         "TaxesAll"                
+
+
+  [37] "Male"                     "Female"                  
+
+
+  [39] "X18YearsOlder"            "X21YearsOlder"           
+
+
+  [41] "X62YearsOlder"            "X65YearsOlder"           
+
+
+  [43] "TwoOrMoreRace"            "White"                   
+
+
+  [45] "Black"                    "NativeAmeri"             
+
+
+  [47] "Asian"                    "PacificIslander"         
+
+
+  [49] "Other"                    "Hispanic"                
+
+
+  [51] "SalesTax"                 "LandArea"                
+
+
+  [53] "PovertyRate"

@@ -21,6 +21,7 @@ import Data.Vector as V hiding (foldl, map, zip)
 import qualified Data.Yaml as Y
 import System.Console.CmdArgs hiding (def)
 import System.Environment (getArgs, getProgName)
+import System.Exit (die, exitFailure, exitSuccess, ExitCode(..))
 import System.IO (openFile, hClose, hGetContents, IOMode(..), stdin, openTempFileWithDefaultPermissions)
 import System.Directory (renameFile)
 import System.FilePath (takeExtension, takeBaseName, (</>), (<.>))
@@ -123,22 +124,10 @@ defaultOptions = Options {
 projectCol :: Int -> CellMap -> [String]
 projectCol target m = map (\(CellText v) -> T.unpack v) $ catMaybes $ map (\((r, c), cell) -> if c == target then (_cellValue $ cell)  else Nothing) $ M.toAscList m
 
-main :: IO ()
-main = do
-  args <- cmdArgs defaultOptions
-  ct <- getPOSIXTime
-  let ext = takeExtension (opt_values args)
-      yaml = if (opt_yaml args) == False && (opt_values args) /= "-" && (ext == ".yml" || ext == ".yaml" || ext == ".YML" || ext == ".YAML")
-             then True else (opt_yaml args)
-  -- putStrLn $  (show yaml)
-  -- -v - means read from stdin.
-  valh <- if (opt_values args) == "-" then return stdin else openFile (opt_values args) ReadMode
-  valc <- hGetContents valh
-  excel <- L.readFile (opt_input args)
-
+populate :: L.ByteString -> [[String]] -> T.Text -> Xlsx
+populate excel vals sheetnm =
   let xlsx = toXlsx excel
-      sheet =  fromJust (xlsx ^? ixSheet (opt_sheet args) )
-      vals = if yaml then getYAML valc else getCSV valc
+      sheet =  fromJust (xlsx ^? ixSheet sheetnm)
       cells = _wsCells sheet
 
       -- Build a map of (section, question number) to row number.
@@ -147,18 +136,38 @@ main = do
       -- for large rubrics like the final report that has 81 rows, or nearly 700 cells.
       qmap = M.fromList $ zip (zip (projectCol 1 cells) (projectCol 2 cells)) [1..]
       cells' = foldl (updateCell qmap) cells vals
-      xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells' }
+  in
+    xlsx & atSheet sheetnm ?~ sheet { _wsCells = cells' }
 
-  putStrLn $ show $ yaml
-  putStrLn $ show $ vals
+  
+  
+main :: IO ()
+main = do
+  args <- cmdArgs defaultOptions
+  ct <- getPOSIXTime
+  let ext = takeExtension (opt_values args)
+      isYaml = if (opt_yaml args) == False && (opt_values args) /= "-" && (ext == ".yml" || ext == ".yaml" || ext == ".YML" || ext == ".YAML")
+             then True else (opt_yaml args)
+  -- putStrLn $  (show yaml)
+  -- -v - means read from stdin.
+  valh <- if (opt_values args) == "-" then return stdin else openFile (opt_values args) ReadMode
+  valc <- hGetContents valh
+  excel <- L.readFile (opt_input args)
+
 
   -- It's considered bad practice to read from and write to the name file, so
   -- write to a temp file, then rename it.
   (tmpNm, tmph) <- openTempFileWithDefaultPermissions "." "output.xlsx" -- becomes "outputNNN.xlsx"
-  L.hPut tmph $ fromXlsx ct xlsx'
+
+  if isYaml then
+      case Y.decodeEither' $ LU.pack valc of
+                     Left err -> do die $ Y.prettyPrintParseException err
+                     Right y -> L.hPut tmph $ fromXlsx ct $ populate excel (toVals y) (opt_sheet args)
+    else
+    let vals = getCSV valc in do
+      L.hPut tmph $ fromXlsx ct $ populate excel vals (opt_sheet args)
+
   hClose tmph
 
   renameFile tmpNm  (opt_output args)
---  putStrLn $ show $ zip (zip  (map (\(CellText v) -> v) $ catMaybes $ map (\((r, c), cell) -> if c == 1 then (_cellValue $ cell)  else Nothing) $ M.toAscList cells)
---                              (map (\(CellText v) -> v) $ catMaybes $ map (\((r, c), cell) -> if c == 2 then (_cellValue $ cell)  else Nothing) $ M.toAscList cells))
---                        [1..]
+  exitSuccess

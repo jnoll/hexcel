@@ -38,6 +38,13 @@ test-yupdate: build
 test-yupdate2: build
 	cp rubric.xlsx input.xlsx
 	cat example.yml | stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output input.xlsx --yaml --values - 
+test-yupdate-err: build
+	cp rubric.xlsx input.xlsx
+	-stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output input.xlsx --values invalid.yml
+	cp rubric.xlsx input.xlsx
+	-stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output input.xlsx --values invalid2.yml
+	cp rubric.xlsx input.xlsx
+	-stack exec rupdate -- --sheet Sheet1 --input input.xlsx --output input.xlsx --values invalid3.yml
 
 # 
 test-update_marks: build

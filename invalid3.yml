@@ -1,0 +1,23 @@
+A_Group_3
+
+Ahmad Jalal, Waqas Ali Shoukat, Husnain Saleem, Muhammad Usman Suhail, Z Irfan Ullah
+
+Topic Unemployment in of USA from 2007 to 2015
+RQ Is there a difference in average mean of unemployment between the counties of Autauga and Baldwin in the state of Alabama from the year 2007 to 2015.
+
+H-null There is a difference in average mean unemployment in the counties of Autauga and Baldwin in the state of Alabama from the year 2007 to 2015.
+
+H-alt The average mean unemployment in Baldwin county is much greater than the average mean in Autauga county in the state of Alabama from the year 2007 to 2015.
+
+URL  https://dc-data-journalism/urban-rural-health-and-demographic-data | Workspace | data.world
+
+Columns
+ > d<-read.csv("unemployment.csv")
+ > colnames(d)
+[1] "year"                 "fips"                 "state_fips"
+ [4] "county_fips"          "county_name"          "state_name"
+ [7] "state_abbr"           "metro_nonmetro"       "unemployed"
+[10] "civilian_labor_force"
+
+
+

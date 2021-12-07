@@ -90,6 +90,7 @@ executable rubric2xlsx
                    , csv
                    , data-default-class
                    , directory
+                   , HStringTemplate
                    , lens
                    , regex-pcre
                    , text
