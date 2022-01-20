@@ -93,7 +93,7 @@ main = do
   let xlsx = toXlsx excel
       formula = (opt_formula args)
       sheet = fromJust (xlsx ^? ixSheet (opt_sheet args) )
-      (cells', rowprops) = updateCell 2 3 "bar" $ updateCell 3 3 contents  ((_wsCells $ sheet), (_wsRowPropertiesMap $ sheet))
+      (cells', rowprops) = updateCell 2 3 "1" $ updateCell 3 3 contents  ((_wsCells $ sheet), (_wsRowPropertiesMap $ sheet))
 --      (cells', rowprops) = updateCell 2 3 "bar" ((_wsCells $ sheet), (_wsRowPropertiesMap $ sheet))
       cells = case formula of
                 "" -> cells'
@@ -101,8 +101,14 @@ main = do
                 otherwise -> updateFormula 3 4 formula $ cells'
       conds = (map (\x -> createCondition x 5 (cond x) x) $ [1..25]) ++
               (map (\x -> createCondition x 5 (cond' x) x) $ [1..25])
+      names = DefinedNames [("foo", Nothing, "D12"), ("bar", Just "Sheet1", "$C$2")]
+      tables = [Table {tblDisplayName = "aTable", tblName = Just "aTable", tblRef = CellRef {unCellRef = "B3"}, tblColumns = [ TableColumn {tblcName = "unused" } ], tblAutoFilter = Nothing } ]
       -- [createCondition 1 5 (cond 1) 1, createCondition 2 5 (cond 2) 2, createCondition 3 5 (cond 3) 3, createCondition 4 5 (cond 4) 4, createCondition 5 5 (cond 5) 5 ]
-      xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells , _wsRowPropertiesMap = rowprops, _wsConditionalFormattings = M.fromList conds }
+      xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells
+                                                       , _wsRowPropertiesMap = rowprops
+                                                       , _wsConditionalFormattings = M.fromList conds
+                                                       , _wsTables = tables
+                                                         }
 --      xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells' }
       styleSheet = def { _styleSheetDxfs = [ def {_dxfFill = Just $ Fill { _fillPattern = Just $ def { _fillPatternBgColor = Just $ def { _colorARGB = Just "FF6666" } } } }
                                            , def {_dxfFill = Just $ Fill { _fillPattern = Just $ def { _fillPatternBgColor = Just $ def { _colorARGB = Just "00FF00" } } } } ] }
@@ -111,7 +117,9 @@ main = do
   -- write to a temp file, then rename it.
       
   (tmpNm, tmph) <- openTempFileWithDefaultPermissions "." "output.xlsx" -- becomes "outputNNN.xlsx"
-  L.hPut tmph $ fromXlsx ct xlsx' { _xlStyles = styles }
+  L.hPut tmph $ fromXlsx ct xlsx' { _xlStyles = styles
+                                  , _xlDefinedNames = names
+                                  }
   hClose tmph
 
   renameFile tmpNm  (opt_output args)

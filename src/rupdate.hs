@@ -9,7 +9,7 @@ import Codec.Xlsx.SimpleFormatted
 import Control.Lens
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Char8 as LU 
-import Data.List (intercalate, map, nub)
+import Data.List (intercalate, map, nub, foldl')
 --import Data.Map (Map)
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map as M
@@ -17,7 +17,7 @@ import Data.Maybe (fromJust, fromMaybe, catMaybes, isJust)
 import Data.Scientific (FPFormat(Generic), formatScientific)
 import qualified Data.Text as T
 import Data.Time.Clock.POSIX
-import Data.Vector as V hiding (foldl, map, zip)
+import Data.Vector as V hiding (foldl', map, zip)
 import qualified Data.Yaml as Y
 import System.Console.CmdArgs hiding (def)
 import System.Environment (getArgs, getProgName)
@@ -40,6 +40,11 @@ makeQmapEntry cm qm r = let sec = M.lookup (r, 1) cm
                                  (CellText q')   = fromMaybe (CellText "") $ (_cellValue $ fromJust q)
                              in M.insert (T.unpack sec', T.unpack q') r qm else qm
 
+-- Build a "question map" (qmap) of (section, question number) to row number.
+-- The numCell limit is a bit lame, but I don't know how to get the number of rows;
+-- but it can't be more than the number of cells.
+makeQmap :: CellMap -> M.Map (String, String) Int
+makeQmap cmap = let numCell = M.size cmap in foldl' (makeQmapEntry cmap) M.empty [1..numCell]
 
 
 -- Update cell map with answer to selected questions in col 4, and comment in col 7.
@@ -124,18 +129,16 @@ defaultOptions = Options {
 projectCol :: Int -> CellMap -> [String]
 projectCol target m = map (\(CellText v) -> T.unpack v) $ catMaybes $ map (\((r, c), cell) -> if c == target then (_cellValue $ cell)  else Nothing) $ M.toAscList m
 
+
 populate :: L.ByteString -> [[String]] -> T.Text -> Xlsx
 populate excel vals sheetnm =
   let xlsx = toXlsx excel
       sheet =  fromJust (xlsx ^? ixSheet sheetnm)
       cells = _wsCells sheet
 
-      -- Build a map of (section, question number) to row number.
-      -- This is more efficient, but at the cost of understandabiltity
-      -- It ends up being 10N, which is silly for rubrics with 30-40 rows, but maybe OK
-      -- for large rubrics like the final report that has 81 rows, or nearly 700 cells.
-      qmap = M.fromList $ zip (zip (projectCol 1 cells) (projectCol 2 cells)) [1..]
-      cells' = foldl (updateCell qmap) cells vals
+
+      qmap = makeQmap cells
+      cells' = foldl' (updateCell qmap) cells vals
   in
     xlsx & atSheet sheetnm ?~ sheet { _wsCells = cells' }
 

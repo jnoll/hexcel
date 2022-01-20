@@ -88,16 +88,22 @@ executable rubric2xlsx
                    , cmdargs
                    , containers
                    , csv
+                   , data-default
                    , data-default-class
                    , directory
+                   , filepath
                    , HStringTemplate
                    , lens
+                   , mtl
                    , regex-pcre
                    , text
                    , time
                    , xlsx
+                   , xml
 
   other-modules:     Codec.Xlsx.SimpleFormatted
+                   , Codec.Xlsx.CSVRubric
+                   , Codec.Xlsx.XMLRubric
 
 executable update_marks
   build-tools:       ghc >= 7.0
