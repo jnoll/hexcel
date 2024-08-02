@@ -66,6 +66,7 @@ executable rupdate
                    , directory
                    , filepath
                    , lens
+                   , pretty-simple
                    , regex-pcre
                    , scientific
                    , text
@@ -104,6 +105,27 @@ executable rubric2xlsx
   other-modules:     Codec.Xlsx.SimpleFormatted
                    , Codec.Xlsx.CSVRubric
                    , Codec.Xlsx.XMLRubric
+
+
+executable rubric2yaml
+  hs-source-dirs:      src
+  main-is:             rubric2yaml.hs
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , aeson
+                     , bytestring
+                     , cmdargs
+                     , csv
+                     , pretty-simple                     
+                     , regex-pcre
+                     , scientific
+                     , text
+                     , unordered-containers
+                     , vector
+                     , yaml
+
+  other-modules:     Data.YamlRubric
+
 
 executable update_marks
   build-tools:       ghc >= 7.0

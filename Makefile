@@ -49,6 +49,13 @@ test-yupdate-err: build
 # 
 test-update_marks: build
 	stack exec update_marks -- --sheet Sheet1 --input marksheet.xlsx --output output.xlsx --values scores.csv
-
+	/usr/lib/libreoffice/program/soffice output.xlsx
 test-update_marks2: build
 	cat scores.csv | stack exec update_marks -- --sheet Sheet1 --input marksheet.xlsx --output output.xlsx --values -
+	/usr/lib/libreoffice/program/soffice output.xlsx
+test-delete_marks: build
+	stack exec update_marks -- --sheet Sheet1 --delete --input marksheet_empties.xlsx --output output.xlsx --values scores.csv
+	/usr/lib/libreoffice/program/soffice output.xlsx
+test-delete_marks2: build
+	stack exec update_marks -- --sheet Sheet1 --delete --dataRow 9 --input marksheet_empties.xlsx --output output.xlsx --values scores.csv
+	/usr/lib/libreoffice/program/soffice output.xlsx

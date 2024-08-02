@@ -8,7 +8,7 @@ import Codec.Xlsx.Formatted (formatWorkbook, FormattedCell(..))
 import Codec.Xlsx.SimpleFormatted
 import Control.Lens
 import qualified Data.ByteString.Lazy as L
-import Data.List (map, nub)
+import Data.List (foldl', intersect, map, nub)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromJust, fromMaybe, catMaybes, isJust)
@@ -44,6 +44,16 @@ updateCell rnum cnum v m = M.update (replaceVal v) (rnum, cnum) m
 replaceVal :: String -> Cell -> Maybe Cell
 replaceVal v c = Just c { _cellValue = Just $ CellText $ T.pack v } 
 
+-- Delete rows from cell map that have no value in the value column.
+deleteRows :: Int -> Int -> Int -> CellMap -> CellMap
+deleteRows kcol dcol drow m = let cs = M.toList m
+                                  emptyKeys = catMaybes $ map (\((r, c), cell) -> if c == kcol && (_cellValue $ cell) /= Nothing then Just r else Nothing) cs
+                                  emptyData = catMaybes $ map (\((r, c), cell) -> if c == dcol && (_cellValue $ cell) == Nothing then Just r else Nothing) cs 
+                                  emptyRows = intersect emptyKeys emptyData
+--                         in M.fromList $ catMaybes $ map (\((r, c), cell) -> if elem r emptyRows then Nothing else Just ((r, c), cell)) cs
+                                  newRows   = foldl' (\a (r, cs) -> if r >= drow && elem r emptyRows then a else cs:a) [] $ toRows m
+                              in fromRows $ zip [1..] $ reverse newRows
+
 getCSV :: String ->  [[String]]
 getCSV contents = case parseCSV "/dev/stderr" contents of
     Left s -> [["error", show $ s]]
@@ -56,6 +66,7 @@ rx s = s::String
 
 
 -- XXXjn this relies on there being a value at every valid cell in the input.  Seems to work.
+-- Should probably be refactored to use toRows.
 projectCol :: Int -> CellMap -> [(Int, Int, String)]
 projectCol target m = catMaybes $ map toVal $ map (\((r, c), cell) -> if c == target then Just (r, c, (_cellValue $ cell))  else Nothing) $ M.toAscList m
 
@@ -69,12 +80,15 @@ toVal (Just (r, c, Nothing)) = Nothing
 toVal Nothing = Nothing
 
 
+
 -- Main entry point
 
 data Options = Options {
     opt_sheet :: T.Text
+  , opt_delete :: Bool
   , opt_keyCol :: Int
   , opt_dataCol :: Int
+  , opt_dataRow :: Int
   , opt_values :: FilePath
   , opt_input :: FilePath
   , opt_output :: FilePath
@@ -83,8 +97,10 @@ data Options = Options {
 defaultOptions :: Options
 defaultOptions = Options {
     opt_sheet   = "Sheet1"       &= typ "String" &= help "Sheet name of input to update"                &= name "sheet"
+  , opt_delete  = False          &= typ "Bool"   &= help "Delete empty data rows?"                      &= name "delete"
   , opt_keyCol  = 2              &= typ "Int"    &= help "Column in source spreadsheet containing keys" &= name "keyCol"
   , opt_dataCol = 5              &= typ "Int"    &= help "Column where values to update begin"          &= name "dataCol"
+  , opt_dataRow = 8              &= typ "Int"    &= help "First row with actual grade data"             &= name "dataRow"
   , opt_values  = "-"            &= typFile      &= help "scores in CSV"                                &= name "values"
   , opt_input   = "input.xlsx"   &= typFile      &= help "Input XLSX file name"                         &= name "input"
   , opt_output  = "example.xlsx" &= typFile      &= help "Output XLSX file name"                        &= name "output"
@@ -108,16 +124,14 @@ main = do
       vals = getCSV valc
       cells = _wsCells sheet
       id_map = M.fromList $ map (\(r, _, v) -> (v, r)) $ projectCol (opt_keyCol args) cells
-      cells' = foldl (updateRow (opt_dataCol args) id_map) cells vals
+      cells' = if (opt_delete args) then deleteRows (opt_keyCol args) (opt_dataCol args) (opt_dataRow args) cells
+               else foldl' (updateRow (opt_dataCol args) id_map) cells vals
       xlsx' = xlsx & atSheet (opt_sheet args) ?~ sheet { _wsCells = cells' }
 
-  -- It's considered bad practice to read from and write to the name file, so
+  -- It's considered bad practice to read from and write to the same file, so
   -- write to a temp file, then rename it.
   (tmpNm, tmph) <- openTempFileWithDefaultPermissions "." "output.xlsx" -- becomes "outputNNN.xlsx"
   L.hPut tmph $ fromXlsx ct xlsx'
   hClose tmph
 
   renameFile tmpNm  (opt_output args)
---  putStrLn $ show $ zip (zip  (map (\(CellText v) -> v) $ catMaybes $ map (\((r, c), cell) -> if c == 1 then (_cellValue $ cell)  else Nothing) $ M.toAscList cells)
---                              (map (\(CellText v) -> v) $ catMaybes $ map (\((r, c), cell) -> if c == 2 then (_cellValue $ cell)  else Nothing) $ M.toAscList cells))
---                        [1..]
